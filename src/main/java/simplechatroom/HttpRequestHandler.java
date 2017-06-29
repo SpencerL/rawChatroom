@@ -6,8 +6,6 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedNioFile;
 
 import java.io.File;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.io.RandomAccessFile;
 
 /**
@@ -18,30 +16,6 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private static final File INDEX;
 
     static {
-        URL location = HttpRequestHandler.class
-                .getProtectionDomain()
-                .getCodeSource().getLocation();
-        /*
-        try {
-
-            //String path = location.toURI() + "index.html";  // TODO: 这里待修改，将index的位置另外设定
-            String path = location.toURI()+"";  // .../wschatroom/target/somename.jar
-            path = !path.contains("file:") ? path : path.substring(5);
-
-            int idx = path.lastIndexOf('/');
-            idx = idx - 6;
-            path = path.substring(0, idx);  // .../wschatroom/
-            path += "index.html";
-
-            //String path = System.getProperty("user.dir") + "index.html";
-            INDEX = new File(path);
-
-        } catch (URISyntaxException e) {
-            throw new IllegalStateException(
-                    "Unable to locate index.html", e);
-        }
-        */
-
         String path = System.getProperty("user.dir")+"/index.html";
         INDEX =  new File(path);
     }
@@ -54,21 +28,22 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
     public void channelRead0(ChannelHandlerContext ctx,
         FullHttpRequest request) throws Exception {
         // 如果请求了websocket,则协议升级，增加引用计数，并将request传递给下一个ChannelInboundHandler
-        if (wsUri.equalsIgnoreCase(request.getUri())) {
+        if (wsUri.equalsIgnoreCase(request.uri())) {
             ctx.fireChannelRead(request.retain());
         } else {
             // 处理100 continue请求
-            if (HttpHeaders.is100ContinueExpected(request)) {
+            if (HttpUtil.is100ContinueExpected(request)) {
                 send100Continue(ctx);
             }
             // 读取index.html
             RandomAccessFile file = new RandomAccessFile(INDEX, "r");
             HttpResponse response = new DefaultHttpResponse(
-                    request.getProtocolVersion(), HttpResponseStatus.OK);
+                    request.protocolVersion(), HttpResponseStatus.OK);
             response.headers().set(
                     "content-type",
                     "text/html; charset=UTF-8");    // 这里是"text/html",不是"text/plain"，否则不会渲染index.html
-            boolean keepAlive = HttpHeaders.isKeepAlive(request);
+
+            boolean keepAlive = HttpUtil.isKeepAlive(request);
             // 如果请求了keep-alive,则添加所需要的HTTP头信息,　TODO: 如何在客户端设置keepalive?
             if (keepAlive) {
                 response.headers().set(
