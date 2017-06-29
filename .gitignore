@@ -1,7 +1,8 @@
 .sh
 .idea
-.iml
+*.iml
 .log
 .sh
 target
 dependencies
+.gitignore
